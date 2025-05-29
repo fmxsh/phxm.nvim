@@ -1882,6 +1882,7 @@ function M.search_in_project_include_remember_last_search()
 	-- Example usage
 	M.search_in_project_include(true)
 end
+
 --sorter = require("telescope").extensions.fzf.native_fzf_sorter(),
 function M.search_in_project_include(remember)
 	remember = remember or false
@@ -2300,35 +2301,46 @@ function M.switch_to_project(selected_project)
 	project.switch_to_project(selected_project)
 end
 
-function M.switch_project_via_telescope()
-	-- Get the base directory for projects
-	local project_base_path = prop.root.root_path
+-- ──────────────────────────────────────────────────────────────────────────────
+-- Recursively collect directories, pruning any dir named "symlinks"
+-- ──────────────────────────────────────────────────────────────────────────────
+local function collect_dirs(root)
+	local uv = vim.loop
+	local dirs = {}
 
-	-- Get all directories in project_base_path that contain a `.session.vim` file
-	local project_dirs = {}
-	--local handle = io.popen("find " .. vim.fn.shellescape(project_base_path) .. ' -type f -name ".session"')
-	--local handle = io.popen("find " .. vim.fn.shellescape(project_base_path) .. ' -type f -name ".session"')
-	--	previous working
-	--	local handle = io.popen("find " .. vim.fn.shellescape(project_base_path) .. " -mindepth 1 -type d")
-
-	-- We want to exclude any of our symlink directories...
-	local handle = io.popen(
-		"find "
-			.. vim.fn.shellescape(project_base_path)
-			.. " -mindepth 1 -type d -name symlinks -prune -o -type d -print"
-	)
-
-	if handle then
-		-- Insert each directory directly into project_dirs
-		for directory in handle:lines() do
-			table.insert(project_dirs, directory)
+	local function scan(dir)
+		local fd = uv.fs_scandir(dir)
+		if not fd then
+			return
 		end
-		handle:close()
+
+		while true do
+			local name, typ = uv.fs_scandir_next(fd)
+			if not name then
+				break
+			end
+
+			if typ == "directory" then
+				if name ~= "symlinks" then -- ✂ 1. never descend into /symlinks
+					local full = dir .. "/" .. name
+					table.insert(dirs, full) --    2. never list /symlinks itself
+					scan(full) --    recurse
+				end
+			end
+		end
 	end
 
-	-- If no project directories were found, notify the user
+	scan(root)
+	return dirs
+end
+
+function M.switch_project_via_telescope()
+	local project_base_path = prop.root.root_path or "/home/f/.vim-projects"
+
+	local project_dirs = collect_dirs(project_base_path)
+
 	if #project_dirs == 0 then
-		vim.notify("No projects with session files found in: " .. project_base_path, vim.log.levels.INFO)
+		vim.notify("No project folders found in: " .. project_base_path, vim.log.levels.INFO)
 		return
 	end
 

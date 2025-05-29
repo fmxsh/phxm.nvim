@@ -23,9 +23,12 @@ function M.setup(opts)
 		local selected_project_file = vim.fn.expand(M.opts.root .. "/.selected_project")
 		if vim.fn.filereadable(selected_project_file) == 1 then
 			local file_content = vim.fn.readfile(selected_project_file)
+			log("phxm loaded with .selected_project file: " .. selected_project_file)
+			log("file content: " .. vim.inspect(file_content))
 			if file_content and #file_content > 0 then
 				local project_path = file_content[1]:gsub("\n$", "")
 				-- Switch to the project if the file has valid content
+				log("switching to project: " .. project_path)
 				require("phxm.project").switch_to_project(project_path)
 				M.opts.is_loaded = true
 
@@ -37,6 +40,7 @@ function M.setup(opts)
 			--				vim.api.nvim_exec_autocmds("User", { pattern = "postStart" })
 			else
 				-- Handle empty file
+				log("not loaded selected project")
 				M.opts.is_loaded = false
 				require("phxm.project").switch_to_project(M.opts.root)
 				M.opts.is_loaded = true

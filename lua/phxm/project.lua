@@ -317,7 +317,6 @@ function M.switch_to_project(selected_project)
 	local phxm = require("phxm")
 	local prop = require("phxm.properties")
 	local session = require("phxm.session")
-
 	if prop.current_project then
 		-- if new target project is same as current project, do nothing
 		-- rather keep the unique previos project
